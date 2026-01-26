@@ -10,6 +10,7 @@ function App() {
     const [gameState, setGameState] = useState('title'); // title, selection, playing, ending
     const [currentPM, setCurrentPM] = useState(null);
     const [score, setScore] = useState(50); // Start with 50% occupancy
+    const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [feedback, setFeedback] = useState('');
     const [outcome, setOutcome] = useState(null); // 'happy' or 'bad'
 
@@ -19,22 +20,29 @@ function App() {
         setCurrentPM(pm);
         setScore(50);
         setFeedback('');
+        setCurrentStepIndex(0);
         setGameState('playing');
     };
 
     const handleChoice = (choice) => {
         if (!choice) {
             // "Next" clicked after feedback
-            if (score >= 70) {
-                setOutcome('happy');
-                setGameState('ending');
-            } else if (score <= 30) {
-                setOutcome('bad');
-                setGameState('ending');
+            if (currentStepIndex + 1 < currentPM.steps.length) {
+                setCurrentStepIndex(currentStepIndex + 1);
+                setFeedback('');
             } else {
-                // Continue or end based on point threshold
-                setOutcome(score >= 50 ? 'happy' : 'bad');
-                setGameState('ending');
+                // All steps completed, determine ending
+                if (score >= 70) {
+                    setOutcome('happy');
+                    setGameState('ending');
+                } else if (score <= 30) {
+                    setOutcome('bad');
+                    setGameState('ending');
+                } else {
+                    // Continue or end based on point threshold
+                    setOutcome(score >= 50 ? 'happy' : 'bad');
+                    setGameState('ending');
+                }
             }
             return;
         }
@@ -49,6 +57,7 @@ function App() {
         setCurrentPM(null);
         setScore(50);
         setFeedback('');
+        setCurrentStepIndex(0);
         setOutcome(null);
     };
 
@@ -174,7 +183,7 @@ function App() {
                         <StatusBoard score={score} />
                         <PMScreen pm={currentPM} />
                         <GameConsole
-                            pm={currentPM}
+                            step={currentPM.steps[currentStepIndex]}
                             onChoice={handleChoice}
                             feedback={feedback}
                         />
