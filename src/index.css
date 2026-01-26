@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Sawarabi Mincho';
+  src: url('https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap');
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Sawarabi Mincho', serif, sans-serif;
+  background-color: #fdfcf0;
+  color: #1a1a1a;
+  overflow-x: hidden;
+}
+
+.wa-card {
+  @apply bg-wa-paper border-2 border-wa-gold rounded-sm shadow-md transition-all duration-300;
+}
+
+.wa-button {
+  @apply px-6 py-2 bg-wa-black text-wa-paper border border-wa-gold hover:bg-wa-gold hover:text-wa-black transition-all duration-300 rounded-sm;
+}
+
+.text-gradient-gold {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-wa-gold via-yellow-200 to-wa-gold;
+}
+
+.glass-panel {
+  @apply bg-white/80 backdrop-blur-md border border-white/20;
+}
