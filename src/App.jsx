@@ -3,6 +3,7 @@ import Header from './components/Header';
 import PMScreen from './components/PMScreen';
 import GameConsole from './components/GameConsole';
 import StatusBoard from './components/StatusBoard';
+import AudioManager from './components/AudioManager';
 import { fullPMData } from './data/pmData';
 import { Play, RotateCcw, Award, Skull, Landmark } from 'lucide-react';
 
@@ -13,6 +14,7 @@ function App() {
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [feedback, setFeedback] = useState('');
     const [outcome, setOutcome] = useState(null); // 'happy' or 'bad'
+    const [isMuted, setIsMuted] = useState(true); // Start muted to respect autoplay policies
 
     const startGame = () => setGameState('selection');
 
@@ -22,6 +24,7 @@ function App() {
         setFeedback('');
         setCurrentStepIndex(0);
         setGameState('playing');
+        setIsMuted(false); // Enable music when game starts
     };
 
     const handleChoice = (choice) => {
@@ -112,13 +115,28 @@ function App() {
                         onClick={() => selectPM(pm)}
                         className="wa-card cursor-pointer group hover:border-wa-red hover:-translate-y-2 p-4 flex flex-col gap-3 relative overflow-hidden"
                     >
-                        <div className="text-[10px] text-wa-black/40 font-bold">第{pm.id}代 内閣総理大臣</div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-2xl font-black text-wa-black group-hover:text-wa-red">{pm.name}</span>
-                            <span className="bg-wa-indigo text-wa-paper px-2 py-0.5 text-[10px]">{pm.era}</span>
-                        </div>
-                        <div className="text-xs text-wa-indigo font-bold italic">
-                            「{pm.personality}」
+                        <div className="flex gap-4">
+                            <div className="w-20 h-20 bg-wa-indigo/10 border border-wa-indigo/30 overflow-hidden flex-shrink-0">
+                                <img
+                                    src={`/assets/pms/pm_${pm.id}.png`}
+                                    alt={pm.name}
+                                    className="w-full h-full object-cover object-top"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${pm.name}&backgroundColor=transparent`;
+                                    }}
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <div className="text-[10px] text-wa-black/40 font-bold">第{pm.id}代 内閣総理大臣</div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-2xl font-black text-wa-black group-hover:text-wa-red">{pm.name}</span>
+                                    <span className="bg-wa-indigo text-wa-paper px-2 py-0.5 text-[10px]">{pm.era}</span>
+                                </div>
+                                <div className="text-xs text-wa-indigo font-bold italic">
+                                    「{pm.personality}」
+                                </div>
+                            </div>
                         </div>
                         <div className="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
                             <Landmark size={80} />
@@ -178,7 +196,11 @@ function App() {
 
             {gameState === 'playing' && (
                 <div className="h-screen flex flex-col bg-wa-paper overflow-hidden">
-                    <Header title="歴代首相★恋の議事録" />
+                    <Header
+                        title="歴代首相★恋の議事録"
+                        isMuted={isMuted}
+                        onToggleMute={() => setIsMuted(!isMuted)}
+                    />
                     <div className="relative flex-1 flex flex-col">
                         <StatusBoard score={score} />
                         <PMScreen pm={currentPM} />
@@ -191,6 +213,7 @@ function App() {
                 </div>
             )}
 
+            <AudioManager isPlaying={!isMuted} />
             {gameState === 'ending' && <EndingScreen />}
         </div>
     );
