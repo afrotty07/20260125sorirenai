@@ -15,8 +15,57 @@ function App() {
     const [feedback, setFeedback] = useState('');
     const [outcome, setOutcome] = useState(null); // 'happy' or 'bad'
     const [isMuted, setIsMuted] = useState(true); // Start muted to respect autoplay policies
+    const [clearedPMs, setClearedPMs] = useState([]); // Array of PM IDs who reached Happy End
+    const [hasSuspendedGame, setHasSuspendedGame] = useState(false);
+
+    // Load romance records on mount
+    useEffect(() => {
+        const savedRecords = localStorage.getItem('pmRomanceRecords');
+        if (savedRecords) {
+            setClearedPMs(JSON.parse(savedRecords));
+        }
+
+        setHasSuspendedGame(!!localStorage.getItem('pmSuspendedGame'));
+    }, []);
+
+    // Auto-save suspended game
+    useEffect(() => {
+        if (gameState === 'playing' && currentPM) {
+            const gameData = {
+                pmId: currentPM.id,
+                score,
+                currentStepIndex,
+                feedback
+            };
+            localStorage.setItem('pmSuspendedGame', JSON.stringify(gameData));
+        } else if (gameState === 'ending' || gameState === 'title') {
+            localStorage.removeItem('pmSuspendedGame');
+            setHasSuspendedGame(false);
+        }
+    }, [gameState, currentPM, score, currentStepIndex, feedback]);
+
+    // Save romance records when a new PM is cleared
+    useEffect(() => {
+        localStorage.setItem('pmRomanceRecords', JSON.stringify(clearedPMs));
+    }, [clearedPMs]);
 
     const startGame = () => setGameState('selection');
+
+    const resumeGame = () => {
+        const suspendedGame = localStorage.getItem('pmSuspendedGame');
+        if (suspendedGame) {
+            const data = JSON.parse(suspendedGame);
+            const pm = fullPMData.find(p => p.id === data.pmId);
+            if (pm) {
+                setCurrentPM(pm);
+                setScore(data.score);
+                setCurrentStepIndex(data.currentStepIndex);
+                setFeedback(data.feedback);
+                setGameState('playing');
+                setIsMuted(false);
+            }
+        }
+    };
 
     const selectPM = (pm) => {
         setCurrentPM(pm);
@@ -35,16 +84,14 @@ function App() {
                 setFeedback('');
             } else {
                 // All steps completed, determine ending
-                if (score >= 70) {
-                    setOutcome('happy');
-                    setGameState('ending');
-                } else if (score <= 30) {
-                    setOutcome('bad');
-                    setGameState('ending');
-                } else {
-                    // Continue or end based on point threshold
-                    setOutcome(score >= 50 ? 'happy' : 'bad');
-                    setGameState('ending');
+                const isHappy = score >= 50; // Simple threshold for now, or match existing logic
+                const finalOutcome = score >= 70 ? 'happy' : (score <= 30 ? 'bad' : (score >= 50 ? 'happy' : 'bad'));
+
+                setOutcome(finalOutcome);
+                setGameState('ending');
+
+                if (finalOutcome === 'happy' && !clearedPMs.includes(currentPM.name)) {
+                    setClearedPMs([...clearedPMs, currentPM.name]);
                 }
             }
             return;
@@ -82,20 +129,32 @@ function App() {
                     ― Prime Minister Heartthrob ―
                 </p>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                     <p className="text-wa-black/80 font-medium leading-relaxed">
                         あなたは時を駆けるタイムトラベラー。<br />
                         激動の時代を生きる宰相たちの懐に入り、<br />
                         歴史を動かす恋と政策の二重奏を奏でましょう。
                     </p>
 
-                    <button
-                        onClick={startGame}
-                        className="wa-button text-2xl px-12 py-4 flex items-center gap-3 mx-auto group"
-                    >
-                        <Play fill="currentColor" />
-                        議政開始（スタート）
-                    </button>
+                    <div className="flex flex-col gap-4">
+                        <button
+                            onClick={startGame}
+                            className="wa-button text-2xl px-12 py-4 flex items-center gap-3 mx-auto group"
+                        >
+                            <Play fill="currentColor" />
+                            議政開始（はじめから）
+                        </button>
+
+                        {hasSuspendedGame && (
+                            <button
+                                onClick={resumeGame}
+                                className="bg-wa-gold text-wa-black font-black text-xl px-12 py-4 border-4 border-wa-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-3 mx-auto"
+                            >
+                                <Award />
+                                執務再開（つづきから）
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -107,48 +166,55 @@ function App() {
             <h2 className="text-4xl font-black text-wa-indigo mb-8 border-b-4 border-wa-gold pb-2">
                 攻略対象（首相）を選択
             </h2>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full max-w-7xl overflow-y-auto max-h-[80vh] px-4 py-8">
-                {fullPMData.map((pm) => (
-                    <div
-                        key={pm.id}
-                        onClick={() => selectPM(pm)}
-                        className="wa-card cursor-pointer group hover:border-wa-red hover:-translate-y-2 p-4 flex flex-col gap-3 relative overflow-hidden"
-                    >
-                        <div className="flex gap-4">
-                            <div className="w-20 h-20 bg-wa-indigo/10 border border-wa-indigo/30 overflow-hidden flex-shrink-0">
-                                <img
-                                    src={`/assets/pms/pm_${pm.id}.png`}
-                                    alt={pm.name}
-                                    className="w-full h-full object-cover object-top"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${pm.name}&backgroundColor=transparent`;
-                                    }}
-                                />
+                {fullPMData.map((pm) => {
+                    const isCleared = clearedPMs.includes(pm.name);
+                    return (
+                        <div
+                            key={pm.id}
+                            onClick={() => selectPM(pm)}
+                            className={`wa-card cursor-pointer group hover:border-wa-red hover:-translate-y-2 p-4 flex flex-col gap-3 relative overflow-hidden ${isCleared ? 'border-wa-red' : ''}`}
+                        >
+                            {isCleared && (
+                                <div className="absolute top-2 right-2 text-wa-red animate-pulse">
+                                    <Award size={24} />
+                                </div>
+                            )}
+                            <div className="flex gap-4">
+                                <div className="w-20 h-20 bg-wa-indigo/10 border border-wa-indigo/30 overflow-hidden flex-shrink-0">
+                                    <img
+                                        src={`/assets/pms/pm_${pm.id}.png`}
+                                        alt={pm.name}
+                                        className="w-full h-full object-cover object-top"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${pm.name}&backgroundColor=transparent`;
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] text-wa-black/40 font-bold">第{pm.id}代 内閣総理大臣</div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-2xl font-black text-wa-black group-hover:text-wa-red">{pm.name}</span>
+                                        <span className="bg-wa-indigo text-wa-paper px-2 py-0.5 text-[10px]">{pm.era}</span>
+                                    </div>
+                                    <div className="text-xs text-wa-indigo font-bold italic">
+                                        「{pm.personality}」
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <div className="text-[10px] text-wa-black/40 font-bold">第{pm.id}代 内閣総理大臣</div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-2xl font-black text-wa-black group-hover:text-wa-red">{pm.name}</span>
-                                    <span className="bg-wa-indigo text-wa-paper px-2 py-0.5 text-[10px]">{pm.era}</span>
-                                </div>
-                                <div className="text-xs text-wa-indigo font-bold italic">
-                                    「{pm.personality}」
-                                </div>
+                            <div className="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <Landmark size={80} />
                             </div>
                         </div>
-                        <div className="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <Landmark size={80} />
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <button onClick={resetGame} className="mt-8 wa-button flex items-center gap-2">
                 タイトルへ戻る
             </button>
-        </div>
+        </div >
     );
 
     // Ending Screen Component
