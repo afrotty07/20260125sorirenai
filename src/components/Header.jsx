@@ -2,10 +2,10 @@ import { Landmark, Volume2, VolumeX } from 'lucide-react';
 
 const Header = ({ title, isMuted, onToggleMute }) => {
     return (
-        <header className="w-full bg-wa-black text-wa-gold py-4 px-6 flex items-center justify-between border-b-4 border-wa-gold shadow-lg z-10">
-            <div className="flex items-center gap-3">
-                <Landmark size={28} className="text-wa-gold" />
-                <h1 className="text-2xl font-bold tracking-widest uppercase">{title}</h1>
+        <header className="w-full bg-wa-black text-wa-gold py-3 sm:py-4 px-4 sm:px-6 flex items-center justify-between border-b-4 border-wa-gold shadow-lg z-10">
+            <div className="flex items-center gap-2 sm:gap-3">
+                <Landmark size={24} className="text-wa-gold sm:w-7 sm:h-7" />
+                <h1 className="text-lg sm:text-2xl font-bold tracking-widest uppercase truncate max-w-[200px] sm:max-w-none">{title}</h1>
             </div>
 
             <div className="flex items-center gap-6">
