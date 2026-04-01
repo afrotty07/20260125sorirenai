@@ -5,7 +5,11 @@ import GameConsole from './components/GameConsole';
 import StatusBoard from './components/StatusBoard';
 import AudioManager from './components/AudioManager';
 import { fullPMData } from './data/pmData';
-import { Play, RotateCcw, Award, Skull, Landmark } from 'lucide-react';
+import { Play, RotateCcw, Award, Skull, Landmark, LogOut } from 'lucide-react';
+
+import { auth, provider, db } from './lib/firebase';
+import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 function App() {
     const [gameState, setGameState] = useState('title'); // title, selection, playing, ending
@@ -16,17 +20,49 @@ function App() {
     const [outcome, setOutcome] = useState(null); // 'happy' or 'bad'
     const [isMuted, setIsMuted] = useState(true); // Start muted to respect autoplay policies
     const [clearedPMs, setClearedPMs] = useState([]); // Array of PM IDs who reached Happy End
+    const [visualEffect, setVisualEffect] = useState(null); // 'good' or 'bad'
     const [hasSuspendedGame, setHasSuspendedGame] = useState(false);
+    
+    // Firebase Auth State
+    const [user, setUser] = useState(null);
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
 
-    // Load romance records on mount
+    // Load romance records and user auth on mount
     useEffect(() => {
-        const savedRecords = localStorage.getItem('pmRomanceRecords');
-        if (savedRecords) {
-            setClearedPMs(JSON.parse(savedRecords));
-        }
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            setUser(currentUser);
+            setIsLoadingUser(false);
+            if (currentUser) {
+                // Load data from Firestore
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                const userDoc = await getDoc(userDocRef);
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    if (data.clearedPMs) setClearedPMs(data.clearedPMs);
+                    if (data.suspendedGame) setHasSuspendedGame(true);
+                }
+            } else {
+                // Fallback to localStorage
+                const savedRecords = localStorage.getItem('pmRomanceRecords');
+                if (savedRecords) {
+                    setClearedPMs(JSON.parse(savedRecords));
+                }
+                setHasSuspendedGame(!!localStorage.getItem('pmSuspendedGame'));
+            }
+        });
 
-        setHasSuspendedGame(!!localStorage.getItem('pmSuspendedGame'));
+        return () => unsubscribe();
     }, []);
+
+    // Helper to save suspended game
+    const saveSuspendedGame = async (gameData) => {
+        if (user) {
+            await setDoc(doc(db, 'users', user.uid), { suspendedGame: gameData }, { merge: true });
+        } else {
+            if (gameData) localStorage.setItem('pmSuspendedGame', JSON.stringify(gameData));
+            else localStorage.removeItem('pmSuspendedGame');
+        }
+    };
 
     // Auto-save suspended game
     useEffect(() => {
@@ -37,24 +73,62 @@ function App() {
                 currentStepIndex,
                 feedback
             };
-            localStorage.setItem('pmSuspendedGame', JSON.stringify(gameData));
+            setHasSuspendedGame(true);
+            saveSuspendedGame(gameData);
         } else if (gameState === 'ending' || gameState === 'title') {
-            localStorage.removeItem('pmSuspendedGame');
             setHasSuspendedGame(false);
+            saveSuspendedGame(null);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameState, currentPM, score, currentStepIndex, feedback]);
 
     // Save romance records when a new PM is cleared
     useEffect(() => {
-        localStorage.setItem('pmRomanceRecords', JSON.stringify(clearedPMs));
-    }, [clearedPMs]);
+        if (clearedPMs.length > 0) {
+            if (user) {
+                setDoc(doc(db, 'users', user.uid), { clearedPMs }, { merge: true });
+            } else {
+                localStorage.setItem('pmRomanceRecords', JSON.stringify(clearedPMs));
+            }
+        }
+    }, [clearedPMs, user]);
+
+    const handleLogin = async () => {
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error('Login failed:', error);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            setClearedPMs([]);
+            setHasSuspendedGame(false);
+            setGameState('title');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
 
     const startGame = () => setGameState('selection');
 
-    const resumeGame = () => {
-        const suspendedGame = localStorage.getItem('pmSuspendedGame');
-        if (suspendedGame) {
-            const data = JSON.parse(suspendedGame);
+    const resumeGame = async () => {
+        let data = null;
+        if (user) {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists() && userDoc.data().suspendedGame) {
+                data = userDoc.data().suspendedGame;
+            }
+        } else {
+            const suspendedGame = localStorage.getItem('pmSuspendedGame');
+            if (suspendedGame) {
+                data = JSON.parse(suspendedGame);
+            }
+        }
+
+        if (data) {
             const pm = fullPMData.find(p => p.id === data.pmId);
             if (pm) {
                 setCurrentPM(pm);
@@ -84,14 +158,13 @@ function App() {
                 setFeedback('');
             } else {
                 // All steps completed, determine ending
-                const isHappy = score >= 50; // Simple threshold for now, or match existing logic
                 const finalOutcome = score >= 70 ? 'happy' : (score <= 30 ? 'bad' : (score >= 50 ? 'happy' : 'bad'));
 
                 setOutcome(finalOutcome);
                 setGameState('ending');
 
                 if (finalOutcome === 'happy' && !clearedPMs.includes(currentPM.name)) {
-                    setClearedPMs([...clearedPMs, currentPM.name]);
+                    setClearedPMs(prev => [...prev, currentPM.name]);
                 }
             }
             return;
@@ -100,6 +173,16 @@ function App() {
         const newScore = score + choice.point;
         setScore(newScore);
         setFeedback(choice.feedback);
+
+        // Trigger visual effect based on point value
+        if (choice.point >= 15) {
+            setVisualEffect('good');
+        } else if (choice.point <= 0) {
+            setVisualEffect('bad');
+        }
+
+        // Clear effect after 1 second
+        setTimeout(() => setVisualEffect(null), 1000);
     };
 
     const resetGame = () => {
@@ -119,6 +202,34 @@ function App() {
                 style={{ backgroundImage: "url('/diet_bg.png')" }}
             >
                 <div className="absolute inset-0 bg-wa-indigo/40 mix-blend-multiply"></div>
+            </div>
+
+            {/* Auth UI */}
+            <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+                {!isLoadingUser && (
+                    user ? (
+                        <div className="flex items-center gap-3 bg-white/95 px-4 py-2 border-2 border-wa-indigo shadow-md rounded-sm">
+                            <img src={user.photoURL} alt="user" className="w-8 h-8 rounded-full border border-gray-300" referrerPolicy="no-referrer" />
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-wa-indigo">{user.displayName} さん</span>
+                                <span className="text-[10px] text-gray-500">🎮 セーブデータ同期中</span>
+                            </div>
+                            <button onClick={handleLogout} className="text-wa-red hover:underline text-xs flex items-center gap-1 ml-2 border-l pl-2 border-gray-200">
+                                <LogOut size={14} /> ログアウト
+                            </button>
+                        </div>
+                    ) : (
+                        <button onClick={handleLogin} className="flex items-center gap-2 bg-white px-4 py-2 border-2 border-blue-500 shadow-md text-blue-600 hover:bg-blue-50 font-bold text-sm transition-all hover:-translate-y-1 rounded-sm">
+                            <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                            </svg>
+                            Googleでログイン (セーブ同期)
+                        </button>
+                    )
+                )}
             </div>
 
             <div className="relative z-10 text-center p-8 bg-wa-paper/90 backdrop-blur-md border-4 border-wa-gold shadow-2xl max-w-2xl transform -rotate-1">
@@ -163,9 +274,18 @@ function App() {
     // Selection Screen Component
     const SelectionScreen = () => (
         <div className="min-h-screen bg-wa-paper p-8 flex flex-col items-center">
-            <h2 className="text-4xl font-black text-wa-indigo mb-8 border-b-4 border-wa-gold pb-2">
-                攻略対象（首相）を選択
-            </h2>
+            <div className="w-full max-w-7xl flex justify-between items-center mb-8 border-b-4 border-wa-gold pb-2">
+                <h2 className="text-4xl font-black text-wa-indigo">
+                    攻略対象（首相）を選択
+                </h2>
+                {user && (
+                    <div className="px-4 py-2 bg-wa-indigo/10 border border-wa-indigo rounded-sm flex items-center gap-2">
+                        <img src={user.photoURL} alt="user" className="w-6 h-6 rounded-full" />
+                        <span className="text-wa-indigo font-bold text-sm">セーブ同期中</span>
+                    </div>
+                )}
+            </div>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full max-w-7xl overflow-y-auto max-h-[80vh] px-4 py-8">
                 {fullPMData.map((pm) => {
                     const isCleared = clearedPMs.includes(pm.name);
@@ -214,13 +334,20 @@ function App() {
             <button onClick={resetGame} className="mt-8 wa-button flex items-center gap-2">
                 タイトルへ戻る
             </button>
-        </div >
+        </div>
     );
 
     // Ending Screen Component
     const EndingScreen = () => (
         <div className={`h-screen flex flex-col items-center justify-center p-8 transition-colors duration-1000 ${outcome === 'happy' ? 'bg-wa-paper' : 'bg-wa-black'}`}>
-            <div className={`max-w-2xl w-full p-12 border-4 ${outcome === 'happy' ? 'border-wa-gold bg-white' : 'border-wa-red bg-gray-900'} shadow-2xl text-center transform rotate-1`}>
+            <div className={`max-w-2xl w-full p-12 border-4 ${outcome === 'happy' ? 'border-wa-gold bg-white' : 'border-wa-red bg-gray-900'} shadow-2xl text-center transform rotate-1 relative`}>
+                
+                {user && outcome === 'happy' && (
+                    <div className="absolute top-4 right-4 text-xs font-bold text-wa-indigo bg-wa-gold px-2 py-1 flex items-center gap-1 shadow-sm">
+                        <Award size={14}/> クラウド保存完了
+                    </div>
+                )}
+                
                 {outcome === 'happy' ? (
                     <>
                         <Award size={80} className="mx-auto text-wa-gold mb-6 animate-bounce" />
@@ -261,7 +388,11 @@ function App() {
             {gameState === 'selection' && <SelectionScreen />}
 
             {gameState === 'playing' && (
-                <div className="h-screen flex flex-col bg-wa-paper overflow-hidden">
+                <div className="h-screen flex flex-col bg-wa-paper overflow-hidden relative">
+                    {/* Visual Feedback Overlay */}
+                    {visualEffect === 'good' && <div className="absolute inset-0 z-50 pointer-events-none visual-effect-good"></div>}
+                    {visualEffect === 'bad' && <div className="absolute inset-0 z-50 pointer-events-none visual-effect-bad"></div>}
+
                     <Header
                         title="歴代首相★恋の議事録"
                         isMuted={isMuted}

@@ -13,7 +13,7 @@ const GameConsole = ({ step, onChoice, feedback }) => {
 
                 {/* Choices Container */}
                 {!feedback && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-3">
                         {step.choices.map((choice, index) => (
                             <button
                                 key={index}
