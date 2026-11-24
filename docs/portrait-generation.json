@@ -1,0 +1,104 @@
+{
+  "tool": "built-in image_gen",
+  "mode": "identity-preserve edit",
+  "created": "2026-11-18",
+  "layout": {
+    "columns": 2,
+    "rows": 2,
+    "order": ["happy", "blush", "serious", "sad"]
+  },
+  "prompt": "Use case: identity-preserve. Asset type: production visual novel expression sprite atlas. Edit target: the supplied single original character illustration. Create ONE square 2x2 expression atlas with four exactly equal square cells, tightly aligned to the canvas quarters. Each cell repeats the ENTIRE source composition at the SAME character scale, framing and face location, with identical body pose, hands, clothing, accessories, background, lighting and art style. Preserve the EXACT individual face, hair color, hair style, apparent age, facial hair, glasses if present, original uniform/suit/kimono and its distinctive ornaments. Change ONLY facial expression. TOP LEFT: happy, a clearly warm gentle smile, relaxed brows and kind eyes. TOP RIGHT: romantically embarrassed and delighted, clearly visible natural rosy cheeks, shy tender smile and softened brows. BOTTOM LEFT: serious and attentive, mouth closed, subtly knitted brows; not enraged, not evil. BOTTOM RIGHT: clearly disappointed and quietly sad, eyes slightly lowered, gently downturned mouth and slightly raised inner brows; no tears. Expressions must be DISTINCT and readable in gameplay, while the person remains exactly the same in every cell. Invariant image outside the face. No redesign, no extra objects or people. Remove any original overlaid captions or large text, restoring the clothing underneath naturally; otherwise keep the source setting. No panels borders, no margins, no gutters, no labels, no lettering, no watermark. Clean exactly 2x2 equally sized square sprite frames, not a comic. These are fictional illustrated game characters, not historical likenesses.",
+  "pilotPrompt": "Use case: identity-preserve. Asset type: production visual novel expression sprite atlas. Edit target: the single supplied original character illustration. Create ONE seamless square 2 by 2 expression atlas (ideally 2048x2048; four exactly equal square cells). Each cell repeats the ENTIRE original square composition, identical character size, face position, body pose, clothing, hands, background and warm lighting. Preserve this exact brown swept-back hair, short beard, face shape, dark gold-embroidered Meiji formal coat, watch chain and sunlit study. Change ONLY the facial expression. Cell top-left: gently happy, warm closed-mouth smile, relaxed brows and kind eyes. Cell top-right: romantically embarrassed and delighted, clearly visible natural rosy cheeks, shy tender smile, softened brows. Cell bottom-left: serious attentive expression, closed mouth and subtly knitted brows, NOT angry or cruel. Cell bottom-right: clearly disappointed and quietly sad, lowered eyes, gently downturned mouth, slightly raised inner brows, no tears. Facial differences must be clearly readable in a game portrait. All four cells must keep the original identity, original age and original art style precisely, no redesign, no added accessories. Copy the original background into every cell without any story changes. No borders, no margins, no gutters, no labels, no lettering, no watermark. A clean precisely aligned 2x2 game sprite sheet, not a comic. The subject is a fictional anime game character, not a historical likeness.",
+  "assets": [
+    {
+      "sourcePMId": 1,
+      "reference": "public/assets/pms/pm_1.png",
+      "output": "public/assets/pms/expressions/pm_1-expressions-v1.png",
+      "promptKey": "pilotPrompt"
+    },
+    {
+      "sourcePMId": 2,
+      "reference": "public/assets/pms/pm_2.png",
+      "output": "public/assets/pms/expressions/pm_2-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 3,
+      "reference": "public/assets/pms/pm_3.png",
+      "output": "public/assets/pms/expressions/pm_3-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 4,
+      "reference": "public/assets/pms/pm_4.png",
+      "output": "public/assets/pms/expressions/pm_4-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 8,
+      "reference": "public/assets/pms/pm_8.png",
+      "output": "public/assets/pms/expressions/pm_8-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 11,
+      "reference": "public/assets/pms/pm_11.png",
+      "output": "public/assets/pms/expressions/pm_11-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 12,
+      "reference": "public/assets/pms/pm_12.png",
+      "output": "public/assets/pms/expressions/pm_12-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 16,
+      "reference": "public/assets/pms/pm_16.png",
+      "output": "public/assets/pms/expressions/pm_16-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 17,
+      "reference": "public/assets/pms/pm_17.png",
+      "output": "public/assets/pms/expressions/pm_17-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 18,
+      "reference": "public/assets/pms/pm_18.png",
+      "output": "public/assets/pms/expressions/pm_18-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 19,
+      "reference": "public/assets/pms/pm_19.png",
+      "output": "public/assets/pms/expressions/pm_19-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 20,
+      "reference": "public/assets/pms/pm_20.png",
+      "output": "public/assets/pms/expressions/pm_20-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 21,
+      "reference": "public/assets/pms/pm_21.png",
+      "output": "public/assets/pms/expressions/pm_21-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 23,
+      "reference": "public/assets/pms/pm_23.png",
+      "output": "public/assets/pms/expressions/pm_23-expressions-v1.png",
+      "promptKey": "prompt"
+    },
+    {
+      "sourcePMId": 24,
+      "reference": "public/assets/pms/pm_24.png",
+      "output": "public/assets/pms/expressions/pm_24-expressions-v1.png",
+      "promptKey": "prompt"
+    }
+  ]
+}
